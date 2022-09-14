@@ -25,7 +25,9 @@ class MyProvider with ChangeNotifier{
 
   final textSenderController = TextEditingController();
   bool? asServer = false;
-  ServerSocket? server;
+  //ServerSocket? server;
+  RawDatagramSocket? server;
+  Datagram? receiverData;
   Socket? remoteServer;
   Socket? client;
   String ipv4 = "";
@@ -46,54 +48,77 @@ class MyProvider with ChangeNotifier{
   // Server with Dart Socket
   Future<void> createServer()async{
     await getAddress();
-    server = await ServerSocket.bind(address, 4567);
-    if (server!=null){
-      print("server created ; IP : ${server!.address}:${server!.port} ");
-      listenToClient();
-    }
+    InternetAddress multi = InternetAddress("192.168.1.0");
+    RawDatagramSocket.bind(address, 4545).then((RawDatagramSocket socket){
 
-  }
+      print('sending : ${socket.address.address}:${socket.port}');
+      int port = 4545;
+      //socket.joinMulticast(multi);
+      socket.send("Hello".codeUnits, multi, port);
+      server = socket;
+      socket.listen((event) {
 
-  void listenToClient(){
-    server?.listen((newClient) {
-      remoteServer = newClient;
-      handleConnection();
-    });
-  }
+        receiverData = socket.receive();
+        if(receiverData == null) return;
 
-  void handleConnection() {
-    print('Connection from ${remoteServer?.remoteAddress.address}:${remoteServer?.remotePort}');
+        String m = String.fromCharCodes(receiverData!.data);
 
-    // listen for events from the client
-    remoteServer?.listen(
-
-      // handle data from the client
-    (Uint8List data) async {
-        listWords.add(Message(from: "${remoteServer?.remoteAddress.address}:${remoteServer?.remotePort}", message: String.fromCharCodes(data)));
+        listWords.add(Message(from: "Client :${receiverData!.address}:${receiverData!.port}", message: m.trim()));
         notifyListeners();
-        // if (message == 'Knock, knock.') {
-        //   client.write('Who is there?');
-        // } else if (message.length < 10) {
-        //   client.write('$message who?');
-        // } else {
-        //   client.write('Very funny.');
-        //   client.close();
-        // }
-      },
 
-      // handle errors
-      onError: (error) {
-        print(error);
-        remoteServer?.close();
-      },
 
-      // handle the client closing the connection
-      onDone: () {
-        print('Client left');
-        remoteServer?.close();
-      },
-    );
+      });
+    });
+
+
+    // server = await ServerSocket.bind(address, 4567);
+    // if (server!=null){
+    //   print("server created ; IP : ${server!.address}:${server!.port} ");
+    //   listenToClient();
+    // }
+
   }
+  //
+  // void listenToClient(){
+  //   server?.listen((newClient) {
+  //     remoteServer = newClient;
+  //     handleConnection();
+  //   });
+  // }
+  //
+  // void handleConnection() {
+  //   print('Connection from ${remoteServer?.remoteAddress.address}:${remoteServer?.remotePort}');
+  //
+  //   // listen for events from the client
+  //   remoteServer?.listen(
+  //
+  //     // handle data from the client
+  //   (Uint8List data) async {
+  //       listWords.add(Message(from: "${remoteServer?.remoteAddress.address}:${remoteServer?.remotePort}", message: String.fromCharCodes(data)));
+  //       notifyListeners();
+  //       // if (message == 'Knock, knock.') {
+  //       //   client.write('Who is there?');
+  //       // } else if (message.length < 10) {
+  //       //   client.write('$message who?');
+  //       // } else {
+  //       //   client.write('Very funny.');
+  //       //   client.close();
+  //       // }
+  //     },
+  //
+  //     // handle errors
+  //     onError: (error) {
+  //       print(error);
+  //       remoteServer?.close();
+  //     },
+  //
+  //     // handle the client closing the connection
+  //     onDone: () {
+  //       print('Client left');
+  //       remoteServer?.close();
+  //     },
+  //   );
+  // }
 
   Future<void> createClient()async{
     await getAddress();
@@ -113,8 +138,13 @@ class MyProvider with ChangeNotifier{
   void sendData(){
     print("Send Data : ${textSenderController.text}");
 
-    remoteServer?.write("send :  ${textSenderController.text}");
-    client?.write("send :  ${textSenderController.text}");
+    if(receiverData != null){
+
+      server?.send("Server : ${textSenderController.text}".codeUnits, receiverData!.address, receiverData!.port);
+
+    }
+    // remoteServer?.write("send :  ${textSenderController.text}");
+    // client?.write("send :  ${textSenderController.text}");
 
     textSenderController.clear();
     notifyListeners();
