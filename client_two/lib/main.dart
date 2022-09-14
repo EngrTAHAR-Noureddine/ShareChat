@@ -8,7 +8,7 @@ import 'Login.dart';
 import 'MyProvider.dart';
 
 void main() async{
-  MyProvider().ipv4 = await Ipify.ipv4();
+  //MyProvider().ipv4 = await Ipify.ipv4();
 
   runApp(
       MultiProvider(
